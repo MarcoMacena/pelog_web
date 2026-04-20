@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, send_file
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import pandas as pd
 import bcrypt
