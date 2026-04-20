@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - PELOG</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #1f2e3a; /* cor escura do logo */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-box {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0px 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .login-box img {
+            width: 180px;
+            margin-bottom: 20px;
+        }
+
+        .btn-login {
+            background-color: #1f2e3a;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-login:hover {
+            background-color: #16222c;
+        }
+
+        input {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-box">
+
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+
+    <h4 class="mb-3">Sistema PELOG</h4>
+
+    <form method="post">
+
+        <input name="usuario" class="form-control" placeholder="Usuário">
+
+        <input name="senha" type="password" class="form-control" placeholder="Senha">
+
+        <button type="submit" class="btn btn-login mt-2">Entrar</button>
+
+    </form>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - PELOG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #1f2e3a;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            box-shadow: 0px 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            width: 120px;
+        }
+
+        .table thead {
+            background: #1f2e3a;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+        <div>
+            <a href="/usuarios" class="btn btn-warning">👤 Usuários</a>
+            <a href="/logout" class="btn btn-light">Sair</a>
+        </div>
+    </div>
+
+    <!-- FORMULÁRIO -->
+    <div class="box">
+        <h4>Registrar Entrada</h4>
+
+        <form action="/entrada" method="post" class="row g-3">
+
+            <div class="col-md-2"><input name="placa" class="form-control" placeholder="Placa"></div>
+            <div class="col-md-3"><input name="motorista" class="form-control" placeholder="Motorista"></div>
+            <div class="col-md-2"><input name="cpf" class="form-control" placeholder="CPF"></div>
+            <div class="col-md-3"><input name="empresa" class="form-control" placeholder="Empresa"></div>
+            <div class="col-md-2"><input name="material" class="form-control" placeholder="Material"></div>
+            <div class="col-md-2"><input name="nf" class="form-control" placeholder="NF"></div>
+            <div class="col-md-4"><input name="local" class="form-control" placeholder="Local"></div>
+
+            <div class="col-md-2">
+                <button class="btn btn-success w-100">Registrar</button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- BUSCA + RELATÓRIO -->
+    <div class="box">
+        <div class="row g-2">
+
+            <div class="col-md-6">
+                <form method="get">
+                    <input name="busca" class="form-control" placeholder="Buscar por placa">
+                </form>
+            </div>
+
+            <div class="col-md-6">
+                <form action="/relatorio" method="get" class="row g-2">
+                    <div class="col"><input type="date" name="inicio" class="form-control"></div>
+                    <div class="col"><input type="date" name="fim" class="form-control"></div>
+                    <div class="col"><button class="btn btn-primary w-100">Relatório</button></div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TABELA -->
+    <div class="box">
+
+        <table class="table table-striped table-hover">
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Placa</th>
+                    <th>Motorista</th>
+                    <th>CPF</th>
+                    <th>Empresa</th>
+                    <th>Material</th>
+                    <th>NF</th>
+                    <th>Local</th>
+                    <th>Entrada</th>
+                    <th>Saída</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {% for d in dados %}
+                <tr>
+                    <td>{{ d[0] }}</td>
+                    <td>{{ d[1] }}</td>
+                    <td>{{ d[2] }}</td>
+                    <td>{{ d[3] }}</td>
+                    <td>{{ d[4] }}</td>
+                    <td>{{ d[5] }}</td>
+                    <td>{{ d[6] }}</td>
+                    <td>{{ d[7] }}</td>
+                    <td>{{ d[8] }}</td>
+                    <td>{{ d[9] }}</td>
+
+                    <td>
+                        {% if not d[9] %}
+                            <a href="/saida/{{ d[0] }}" class="btn btn-danger btn-sm">Saída</a>
+                        {% else %}
+                            <span class="text-success">Finalizado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+</body>
+</html>
