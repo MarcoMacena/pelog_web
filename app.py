@@ -96,30 +96,34 @@ def entrada():
     if "user" not in session:
         return redirect("/")
 
-    conn = conectar()
-    cur = conn.cursor()
+    try:
+        conn = conectar()
+        cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO caminhoes (
-            placa, motorista, cpf, empresa,
-            tipo_material, nota_fiscal, doca, horario
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """, (
-        request.form["placa"],
-        request.form["motorista"],
-        request.form["cpf"],
-        request.form["empresa"],
-        request.form["material"],
-        request.form["nf"],
-        request.form["doca"],
-        datetime.now()
-    ))
+        cur.execute("""
+            INSERT INTO caminhoes (
+                placa, motorista, cpf, empresa,
+                tipo_material, nota_fiscal, doca, horario
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            request.form.get("placa"),
+            request.form.get("motorista"),
+            request.form.get("cpf"),
+            request.form.get("empresa"),
+            request.form.get("material"),
+            request.form.get("nf"),
+            request.form.get("doca"),
+            datetime.now()
+        ))
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
-    return redirect("/dashboard")
+        return redirect("/dashboard")
+
+    except Exception as e:
+        return f"Erro ao registrar entrada: {e}"
 
 # =============================
 # SAÍDA
