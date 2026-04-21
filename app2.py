@@ -3,20 +3,21 @@ import psycopg2
 from datetime import datetime
 import pandas as pd
 import bcrypt
+import os
 
 app = Flask(__name__)
-app.secret_key = "pelog_secret"
+app.secret_key = os.environ.get("SECRET_KEY", "pelog_secret")
 
 # =============================
 # CONEXÃO
 # =============================
 def conectar():
     return psycopg2.connect(
-        database="pelog",
-        user="pelog_user",
-        password="1234",
-        host="localhost",
-        port="5432"
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD"),
+        host=os.environ.get("DB_HOST"),
+        port=os.environ.get("DB_PORT", "5432")
     )
 
 # =============================
@@ -36,15 +37,20 @@ def login():
             (user,)
         )
         resultado = cur.fetchone()
+
+        cur.close()
         conn.close()
 
         if resultado:
             senha_hash, nivel = resultado
 
-            if bcrypt.checkpw(senha.encode(), senha_hash.encode()):
-                session["user"] = user
-                session["nivel"] = nivel
-                return redirect("/dashboard")
+            try:
+                if bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
+                    session["user"] = user
+                    session["nivel"] = nivel
+                    return redirect("/dashboard")
+            except ValueError:
+                return "Hash de senha inválido no banco. Recrie esse usuário."
 
         return "Usuário ou senha inválidos!"
 
@@ -76,6 +82,8 @@ def dashboard():
         """)
 
     dados = cur.fetchall()
+
+    cur.close()
     conn.close()
 
     return render_template("dashboard.html", dados=dados)
@@ -108,6 +116,7 @@ def entrada():
     ))
 
     conn.commit()
+    cur.close()
     conn.close()
 
     return redirect("/dashboard")
@@ -130,6 +139,7 @@ def saida(id):
     """, (datetime.now(), id))
 
     conn.commit()
+    cur.close()
     conn.close()
 
     return redirect("/dashboard")
@@ -149,8 +159,8 @@ def relatorio():
 
     if inicio and fim:
         query = """
-        SELECT * FROM caminhoes
-        WHERE horario BETWEEN %s AND %s
+            SELECT * FROM caminhoes
+            WHERE horario BETWEEN %s AND %s
         """
         df = pd.read_sql(query, conn, params=(inicio, fim))
     else:
@@ -164,7 +174,7 @@ def relatorio():
     return send_file(caminho, as_attachment=True)
 
 # =============================
-# USUÁRIOS (NOVO)
+# USUÁRIOS
 # =============================
 @app.route("/usuarios", methods=["GET", "POST"])
 def usuarios():
@@ -179,7 +189,10 @@ def usuarios():
         senha = request.form["senha"]
         nivel = request.form["nivel"]
 
-        senha_hash = bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
+        senha_hash = bcrypt.hashpw(
+            senha.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
 
         cur.execute("""
             INSERT INTO usuarios (username, senha, nivel)
@@ -191,6 +204,7 @@ def usuarios():
     cur.execute("SELECT username, nivel FROM usuarios")
     lista = cur.fetchall()
 
+    cur.close()
     conn.close()
 
     return render_template("usuarios.html", lista=lista)
@@ -207,4 +221,4 @@ def logout():
 # RUN
 # =============================
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

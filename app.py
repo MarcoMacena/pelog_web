@@ -102,7 +102,7 @@ def entrada():
     cur.execute("""
         INSERT INTO caminhoes (
             placa, motorista, cpf, empresa,
-            tipo_material, nota_fiscal, local_entrega, horario
+            tipo_material, nota_fiscal, doca, horario
         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         request.form["placa"],
@@ -111,7 +111,7 @@ def entrada():
         request.form["empresa"],
         request.form["material"],
         request.form["nf"],
-        request.form["local"],
+        request.form["doca"],
         datetime.now()
     ))
 
