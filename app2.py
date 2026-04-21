@@ -8,17 +8,19 @@ import os
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "pelog_secret")
 
+
 # =============================
-# CONEXÃO
+# CONEXÃO COM BANCO
 # =============================
 def conectar():
     return psycopg2.connect(
-        database=os.environ.get("DB_NAME"),
-        user=os.environ.get("DB_USER"),
-        password=os.environ.get("DB_PASSWORD"),
-        host=os.environ.get("DB_HOST"),
+        database=os.environ.get("DB_NAME", "pelog"),
+        user=os.environ.get("DB_USER", "pelog_user"),
+        password=os.environ.get("DB_PASSWORD", "1234"),
+        host=os.environ.get("DB_HOST", "localhost"),
         port=os.environ.get("DB_PORT", "5432")
     )
+
 
 # =============================
 # LOGIN
@@ -26,35 +28,40 @@ def conectar():
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        user = request.form["usuario"]
-        senha = request.form["senha"]
+        usuario = request.form.get("usuario", "").strip()
+        senha = request.form.get("senha", "").strip()
 
-        conn = conectar()
-        cur = conn.cursor()
+        try:
+            conn = conectar()
+            cur = conn.cursor()
 
-        cur.execute(
-            "SELECT senha, nivel FROM usuarios WHERE username = %s",
-            (user,)
-        )
-        resultado = cur.fetchone()
+            cur.execute(
+                "SELECT senha, nivel FROM usuarios WHERE username = %s",
+                (usuario,)
+            )
+            resultado = cur.fetchone()
 
-        cur.close()
-        conn.close()
+            cur.close()
+            conn.close()
 
-        if resultado:
-            senha_hash, nivel = resultado
+            if resultado:
+                senha_hash, nivel = resultado
 
-            try:
-                if bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
-                    session["user"] = user
-                    session["nivel"] = nivel
-                    return redirect("/dashboard")
-            except ValueError:
-                return "Hash de senha inválido no banco. Recrie esse usuário."
+                try:
+                    if bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
+                        session["user"] = usuario
+                        session["nivel"] = nivel
+                        return redirect("/dashboard")
+                except ValueError:
+                    return "Hash de senha inválido no banco. Recrie esse usuário."
 
-        return "Usuário ou senha inválidos!"
+            return "Usuário ou senha inválidos!"
+
+        except Exception as e:
+            return f"Erro no login: {e}"
 
     return render_template("login.html")
+
 
 # =============================
 # DASHBOARD
@@ -64,29 +71,38 @@ def dashboard():
     if "user" not in session:
         return redirect("/")
 
-    busca = request.args.get("busca")
+    busca = request.args.get("busca", "").strip()
 
-    conn = conectar()
-    cur = conn.cursor()
+    try:
+        conn = conectar()
+        cur = conn.cursor()
 
-    if busca:
-        cur.execute("""
-            SELECT * FROM caminhoes
-            WHERE placa ILIKE %s
-            ORDER BY horario DESC
-        """, ('%' + busca + '%',))
-    else:
-        cur.execute("""
-            SELECT * FROM caminhoes
-            ORDER BY horario DESC
-        """)
+        if busca:
+            cur.execute("""
+                SELECT id, placa, motorista, cpf, empresa, tipo_material,
+                       nota_fiscal, doca, horario, horario_saida
+                FROM caminhoes
+                WHERE placa ILIKE %s
+                ORDER BY horario DESC
+            """, ('%' + busca + '%',))
+        else:
+            cur.execute("""
+                SELECT id, placa, motorista, cpf, empresa, tipo_material,
+                       nota_fiscal, doca, horario, horario_saida
+                FROM caminhoes
+                ORDER BY horario DESC
+            """)
 
-    dados = cur.fetchall()
+        dados = cur.fetchall()
 
-    cur.close()
-    conn.close()
+        cur.close()
+        conn.close()
 
-    return render_template("dashboard.html", dados=dados)
+        return render_template("dashboard.html", dados=dados)
+
+    except Exception as e:
+        return f"Erro ao carregar dashboard: {e}"
+
 
 # =============================
 # ENTRADA
@@ -96,30 +112,46 @@ def entrada():
     if "user" not in session:
         return redirect("/")
 
-    conn = conectar()
-    cur = conn.cursor()
+    try:
+        placa = request.form.get("placa", "").strip()
+        motorista = request.form.get("motorista", "").strip()
+        cpf = request.form.get("cpf", "").strip()
+        empresa = request.form.get("empresa", "").strip()
+        material = request.form.get("material", "").strip()
+        nf = request.form.get("nf", "").strip()
+        doca = request.form.get("doca", "").strip()
 
-    cur.execute("""
-        INSERT INTO caminhoes (
-            placa, motorista, cpf, empresa,
-            tipo_material, nota_fiscal, local_entrega, horario
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """, (
-        request.form["placa"],
-        request.form["motorista"],
-        request.form["cpf"],
-        request.form["empresa"],
-        request.form["material"],
-        request.form["nf"],
-        request.form["local"],
-        datetime.now()
-    ))
+        if not placa or not motorista or not empresa or not doca:
+            return "Preencha os campos obrigatórios."
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn = conectar()
+        cur = conn.cursor()
 
-    return redirect("/dashboard")
+        cur.execute("""
+            INSERT INTO caminhoes (
+                placa, motorista, cpf, empresa,
+                tipo_material, nota_fiscal, doca, horario
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            placa,
+            motorista,
+            cpf,
+            empresa,
+            material,
+            nf,
+            doca,
+            datetime.now()
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return redirect("/dashboard")
+
+    except Exception as e:
+        return f"Erro ao registrar entrada: {e}"
+
 
 # =============================
 # SAÍDA
@@ -129,20 +161,25 @@ def saida(id):
     if "user" not in session:
         return redirect("/")
 
-    conn = conectar()
-    cur = conn.cursor()
+    try:
+        conn = conectar()
+        cur = conn.cursor()
 
-    cur.execute("""
-        UPDATE caminhoes
-        SET horario_saida = %s
-        WHERE id = %s
-    """, (datetime.now(), id))
+        cur.execute("""
+            UPDATE caminhoes
+            SET horario_saida = %s
+            WHERE id = %s
+        """, (datetime.now(), id))
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
-    return redirect("/dashboard")
+        return redirect("/dashboard")
+
+    except Exception as e:
+        return f"Erro ao registrar saída: {e}"
+
 
 # =============================
 # RELATÓRIO
@@ -155,59 +192,77 @@ def relatorio():
     inicio = request.args.get("inicio")
     fim = request.args.get("fim")
 
-    conn = conectar()
+    try:
+        conn = conectar()
 
-    if inicio and fim:
-        query = """
-            SELECT * FROM caminhoes
-            WHERE horario BETWEEN %s AND %s
-        """
-        df = pd.read_sql(query, conn, params=(inicio, fim))
-    else:
-        df = pd.read_sql("SELECT * FROM caminhoes", conn)
+        if inicio and fim:
+            query = """
+                SELECT id, placa, motorista, cpf, empresa, tipo_material,
+                       nota_fiscal, doca, horario, horario_saida
+                FROM caminhoes
+                WHERE horario BETWEEN %s AND %s
+                ORDER BY horario DESC
+            """
+            df = pd.read_sql(query, conn, params=(inicio, fim))
+        else:
+            query = """
+                SELECT id, placa, motorista, cpf, empresa, tipo_material,
+                       nota_fiscal, doca, horario, horario_saida
+                FROM caminhoes
+                ORDER BY horario DESC
+            """
+            df = pd.read_sql(query, conn)
 
-    caminho = "relatorio.xlsx"
-    df.to_excel(caminho, index=False)
+        caminho = "relatorio.xlsx"
+        df.to_excel(caminho, index=False)
 
-    conn.close()
+        conn.close()
+        return send_file(caminho, as_attachment=True)
 
-    return send_file(caminho, as_attachment=True)
+    except Exception as e:
+        return f"Erro ao gerar relatório: {e}"
+
 
 # =============================
-# USUÁRIOS
+# USUÁRIOS (LIBERADO TEMPORARIAMENTE)
 # =============================
 @app.route("/usuarios", methods=["GET", "POST"])
 def usuarios():
-    if "user" not in session or session.get("nivel") != "admin":
-        return "Acesso negado"
+    try:
+        conn = conectar()
+        cur = conn.cursor()
 
-    conn = conectar()
-    cur = conn.cursor()
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            senha = request.form.get("senha", "").strip()
+            nivel = request.form.get("nivel", "").strip()
 
-    if request.method == "POST":
-        username = request.form["username"]
-        senha = request.form["senha"]
-        nivel = request.form["nivel"]
+            if not username or not senha or not nivel:
+                return "Preencha todos os campos."
 
-        senha_hash = bcrypt.hashpw(
-            senha.encode("utf-8"),
-            bcrypt.gensalt()
-        ).decode("utf-8")
+            senha_hash = bcrypt.hashpw(
+                senha.encode("utf-8"),
+                bcrypt.gensalt()
+            ).decode("utf-8")
 
-        cur.execute("""
-            INSERT INTO usuarios (username, senha, nivel)
-            VALUES (%s,%s,%s)
-        """, (username, senha_hash, nivel))
+            cur.execute("""
+                INSERT INTO usuarios (username, senha, nivel)
+                VALUES (%s, %s, %s)
+            """, (username, senha_hash, nivel))
 
-        conn.commit()
+            conn.commit()
 
-    cur.execute("SELECT username, nivel FROM usuarios")
-    lista = cur.fetchall()
+        cur.execute("SELECT username, nivel FROM usuarios ORDER BY username")
+        lista = cur.fetchall()
 
-    cur.close()
-    conn.close()
+        cur.close()
+        conn.close()
 
-    return render_template("usuarios.html", lista=lista)
+        return render_template("usuarios.html", lista=lista)
+
+    except Exception as e:
+        return f"Erro na tela de usuários: {e}"
+
 
 # =============================
 # LOGOUT
@@ -216,6 +271,7 @@ def usuarios():
 def logout():
     session.clear()
     return redirect("/")
+
 
 # =============================
 # RUN

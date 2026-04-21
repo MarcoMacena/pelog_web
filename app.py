@@ -13,12 +13,21 @@ app.secret_key = os.environ.get("SECRET_KEY", "pelog_secret")
 # CONEXÃO COM BANCO
 # =============================
 def conectar():
+    db_host = os.environ.get("DB_HOST")
+    db_name = os.environ.get("DB_NAME")
+    db_user = os.environ.get("DB_USER")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_port = os.environ.get("DB_PORT")
+
+    if not db_host or not db_name or not db_user or not db_password or not db_port:
+        raise Exception("Variáveis de ambiente do banco não configuradas corretamente.")
+
     return psycopg2.connect(
-        database=os.environ.get("DB_NAME", "pelog"),
-        user=os.environ.get("DB_USER", "pelog_user"),
-        password=os.environ.get("DB_PASSWORD", "1234"),
-        host=os.environ.get("DB_HOST", "localhost"),
-        port=os.environ.get("DB_PORT", "5432")
+        host=db_host,
+        database=db_name,
+        user=db_user,
+        password=db_password,
+        port=db_port
     )
 
 
@@ -51,7 +60,11 @@ def login():
                     if bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
                         session["user"] = usuario
                         session["nivel"] = nivel
+
+                        if nivel == "portaria":
+                            return redirect("/portaria")
                         return redirect("/dashboard")
+
                 except ValueError:
                     return "Hash de senha inválido no banco. Recrie esse usuário."
 
@@ -64,12 +77,15 @@ def login():
 
 
 # =============================
-# DASHBOARD
+# DASHBOARD ADMIN
 # =============================
 @app.route("/dashboard")
 def dashboard():
     if "user" not in session:
         return redirect("/")
+
+    if session.get("nivel") != "admin":
+        return redirect("/portaria")
 
     busca = request.args.get("busca", "").strip()
 
@@ -98,10 +114,24 @@ def dashboard():
         cur.close()
         conn.close()
 
-        return render_template("dashboard.html", dados=dados)
+        return render_template("dashboard.html", dados=dados, nivel=session.get("nivel"))
 
     except Exception as e:
         return f"Erro ao carregar dashboard: {e}"
+
+
+# =============================
+# TELA DA PORTARIA
+# =============================
+@app.route("/portaria")
+def portaria():
+    if "user" not in session:
+        return redirect("/")
+
+    if session.get("nivel") != "portaria":
+        return redirect("/dashboard")
+
+    return render_template("portaria.html")
 
 
 # =============================
@@ -122,7 +152,7 @@ def entrada():
         doca = request.form.get("doca", "").strip()
 
         if not placa or not motorista or not empresa or not doca:
-            return "Preencha os campos obrigatórios."
+            return "Preencha os campos obrigatórios: placa, motorista, empresa e doca."
 
         conn = conectar()
         cur = conn.cursor()
@@ -147,6 +177,9 @@ def entrada():
         cur.close()
         conn.close()
 
+        if session.get("nivel") == "portaria":
+            return redirect("/portaria")
+
         return redirect("/dashboard")
 
     except Exception as e:
@@ -160,6 +193,9 @@ def entrada():
 def saida(id):
     if "user" not in session:
         return redirect("/")
+
+    if session.get("nivel") != "admin":
+        return "Acesso negado"
 
     try:
         conn = conectar()
@@ -188,6 +224,9 @@ def saida(id):
 def relatorio():
     if "user" not in session:
         return redirect("/")
+
+    if session.get("nivel") != "admin":
+        return "Acesso negado"
 
     inicio = request.args.get("inicio")
     fim = request.args.get("fim")
@@ -224,10 +263,13 @@ def relatorio():
 
 
 # =============================
-# USUÁRIOS (LIBERADO TEMPORARIAMENTE)
+# USUÁRIOS
 # =============================
 @app.route("/usuarios", methods=["GET", "POST"])
 def usuarios():
+    if "user" not in session or session.get("nivel") != "admin":
+        return "Acesso negado"
+
     try:
         conn = conectar()
         cur = conn.cursor()
@@ -235,10 +277,17 @@ def usuarios():
         if request.method == "POST":
             username = request.form.get("username", "").strip()
             senha = request.form.get("senha", "").strip()
-            nivel = request.form.get("nivel", "").strip()
+            nivel = request.form.get("nivel", "").strip().lower()
 
             if not username or not senha or not nivel:
+                cur.close()
+                conn.close()
                 return "Preencha todos os campos."
+
+            if nivel not in ["admin", "portaria"]:
+                cur.close()
+                conn.close()
+                return "Nível inválido."
 
             senha_hash = bcrypt.hashpw(
                 senha.encode("utf-8"),

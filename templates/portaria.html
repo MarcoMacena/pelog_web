@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portaria - PELOG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #1f2e3a;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            box-shadow: 0px 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            width: 120px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+        <div>
+            <a href="/logout" class="btn btn-light">Sair</a>
+        </div>
+    </div>
+
+    <div class="box">
+        <h4>Registrar Entrada</h4>
+        <form action="/entrada" method="post" class="row g-3">
+            <div class="col-md-2"><input name="placa" class="form-control" placeholder="Placa"></div>
+            <div class="col-md-3"><input name="motorista" class="form-control" placeholder="Motorista"></div>
+            <div class="col-md-2"><input name="cpf" class="form-control" placeholder="CPF"></div>
+            <div class="col-md-3"><input name="empresa" class="form-control" placeholder="Empresa"></div>
+            <div class="col-md-2"><input name="material" class="form-control" placeholder="Material"></div>
+            <div class="col-md-2"><input name="nf" class="form-control" placeholder="NF"></div>
+            <div class="col-md-4"><input name="doca" class="form-control" placeholder="Doca"></div>
+            <div class="col-md-2">
+                <button class="btn btn-success w-100">Registrar</button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+</body>
+</html>
